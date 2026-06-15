@@ -424,6 +424,7 @@ async function fetchHistory() {
     date: row.date,
     holes: row.holes || {},
     total: row.total,
+    photoPath: row.photo_path || null,
   }));
   setSync('ok');
 }
@@ -436,6 +437,7 @@ async function insertRound(round) {
     date: round.date,
     holes: round.holes,
     total: round.total,
+    photo_path: round.photoPath || null,
   }).select();
   if (error) { console.error('Insert error:', error); setSync('error'); alert('Erreur de sauvegarde cloud : ' + error.message); return null; }
   setSync('ok');
@@ -448,6 +450,183 @@ async function deleteRoundDb(dbId) {
   if (error) { console.error('Delete error:', error); setSync('error'); return false; }
   setSync('ok');
   return true;
+}
+
+// ═══════════════ PHOTO SOUVENIR (style BeReal) ═══════════════
+let photoStream = null;
+let photoStage = 'back';      // 'back' puis 'front'
+let photoBack = null;          // dataURL caméra arrière
+let photoFront = null;         // dataURL caméra avant
+
+function openPhotoIntro() {
+  document.getElementById('photo-intro').classList.add('open');
+}
+function skipPhoto() {
+  document.getElementById('photo-intro').classList.remove('open');
+}
+
+async function startPhotoCapture() {
+  document.getElementById('photo-intro').classList.remove('open');
+  photoBack = null; photoFront = null; photoStage = 'back';
+  document.getElementById('photo-capture').style.display = 'flex';
+  await openCamera('environment'); // caméra arrière d'abord
+  updatePhotoUI();
+}
+
+async function openCamera(facing) {
+  stopCamera();
+  try {
+    photoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing },
+      audio: false
+    });
+    const v = document.getElementById('photo-video');
+    v.srcObject = photoStream;
+    await v.play();
+  } catch(e) {
+    console.error('Camera error:', e);
+    alert("Impossible d'accéder à la caméra. Vérifie les autorisations dans ton navigateur.");
+    cancelPhotoCapture();
+  }
+}
+
+function stopCamera() {
+  if (photoStream) {
+    photoStream.getTracks().forEach(t => t.stop());
+    photoStream = null;
+  }
+}
+
+function updatePhotoUI() {
+  const label = document.getElementById('photo-stage-label');
+  if (photoStage === 'back') label.textContent = '📷 Photo arrière — la vue du parcours';
+  else label.textContent = '🤳 À toi ! Photo avant';
+}
+
+function capturePhoto() {
+  const v = document.getElementById('photo-video');
+  const canvas = document.createElement('canvas');
+  // Format portrait type BeReal
+  const w = 720, h = 960;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  // Recadrage "cover"
+  const vw = v.videoWidth, vh = v.videoHeight;
+  const scale = Math.max(w/vw, h/vh);
+  const sw = w/scale, sh = h/scale;
+  const sx = (vw - sw)/2, sy = (vh - sh)/2;
+  ctx.drawImage(v, sx, sy, sw, sh, 0, 0, w, h);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+  if (photoStage === 'back') {
+    photoBack = dataUrl;
+    photoStage = 'front';
+    updatePhotoUI();
+    openCamera('user'); // bascule caméra avant
+  } else {
+    photoFront = dataUrl;
+    stopCamera();
+    showPhotoPreview();
+  }
+}
+
+function showPhotoPreview() {
+  document.getElementById('photo-capture').style.display = 'none';
+  // Compose l'aperçu : grande photo arrière + vignette avant en haut à gauche
+  document.getElementById('preview-main').src = photoBack;
+  const thumb = document.getElementById('preview-thumb');
+  if (photoFront) { thumb.src = photoFront; thumb.style.display = 'block'; }
+  else thumb.style.display = 'none';
+  document.getElementById('photo-preview').style.display = 'flex';
+}
+
+function retakePhoto() {
+  document.getElementById('photo-preview').style.display = 'none';
+  startPhotoCapture();
+}
+
+function validatePhoto() {
+  // On compose l'image finale (arrière + vignette avant incrustée) dans un canvas
+  composeFinalPhoto().then(dataUrl => {
+    if (curRound) { curRound.photoDataUrl = dataUrl; saveRound(); }
+    document.getElementById('photo-preview').style.display = 'none';
+    // Petit feedback
+    const badge = document.getElementById('photo-saved-badge');
+    if (badge) { badge.style.display = 'flex'; setTimeout(()=>badge.style.display='none', 2000); }
+  });
+}
+
+function composeFinalPhoto() {
+  return new Promise(resolve => {
+    const w = 720, h = 960;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    const back = new Image();
+    back.onload = () => {
+      ctx.drawImage(back, 0, 0, w, h);
+      if (photoFront) {
+        const front = new Image();
+        front.onload = () => {
+          // vignette en haut à gauche, style BeReal
+          const tw = w*0.32, th = h*0.32, m = 20;
+          ctx.save();
+          ctx.beginPath();
+          const r = 18;
+          roundRect(ctx, m, m, tw, th, r);
+          ctx.clip();
+          ctx.drawImage(front, m, m, tw, th);
+          ctx.restore();
+          ctx.lineWidth = 4; ctx.strokeStyle = 'white';
+          roundRect(ctx, m, m, tw, th, r); ctx.stroke();
+          resolve(canvas.toDataURL('image/jpeg', 0.78));
+        };
+        front.src = photoFront;
+      } else {
+        resolve(canvas.toDataURL('image/jpeg', 0.78));
+      }
+    };
+    back.src = photoBack;
+  });
+}
+function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
+
+function cancelPhotoCapture() {
+  stopCamera();
+  document.getElementById('photo-capture').style.display = 'none';
+  document.getElementById('photo-preview').style.display = 'none';
+}
+
+// Convertit dataURL -> Blob pour l'upload
+function dataUrlToBlob(dataUrl) {
+  const [head, body] = dataUrl.split(',');
+  const mime = head.match(/:(.*?);/)[1];
+  const bin = atob(body);
+  const arr = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+// Upload la photo de la partie courante dans Supabase Storage, renvoie le chemin
+async function uploadRoundPhoto() {
+  if (!curRound || !curRound.photoDataUrl || !currentUser) return null;
+  setSync('syncing');
+  const blob = dataUrlToBlob(curRound.photoDataUrl);
+  const path = `${currentUser.id}/${Date.now()}.jpg`;
+  const { error } = await sb.storage.from('souvenirs').upload(path, blob, {
+    contentType: 'image/jpeg', upsert: false
+  });
+  if (error) { console.error('Upload photo error:', error); setSync('error'); return null; }
+  setSync('ok');
+  return path;
+}
+
+// Récupère une URL signée (temporaire) pour afficher une photo privée
+async function getPhotoUrl(path) {
+  if (!path) return null;
+  const { data, error } = await sb.storage.from('souvenirs').createSignedUrl(path, 3600);
+  if (error) { console.error('Signed URL error:', error); return null; }
+  return data.signedUrl;
 }
 
 let history = [];
@@ -880,10 +1059,12 @@ function confirmNewRound() {
   const course = COURSES.find(c=>c.id===selCourse);
   curRound = {
     id: Date.now(), course: course.name, courseId: selCourse,
-    date: new Date().toLocaleDateString('fr-FR'), holes: {}
+    date: new Date().toLocaleDateString('fr-FR'), holes: {}, photoPath: null, photoDataUrl: null
   };
   saveRound(); closeNRM(); renderMap(); updateInfo();
   document.getElementById('current-round-info').style.display = 'block';
+  // Propose la photo souvenir (optionnelle)
+  openPhotoIntro();
 }
 function closeNRM() { document.getElementById('new-round-modal').classList.remove('open'); }
 
@@ -892,6 +1073,11 @@ async function finishRound() {
   if (Object.keys(curRound.holes).length===0) { alert('Ajoute au moins un trou !'); return; }
   curRound.total = getTotal();
   const finalScore = curRound.total;
+  // Upload de la photo souvenir si présente
+  if (curRound.photoDataUrl) {
+    const path = await uploadRoundPhoto();
+    if (path) curRound.photoPath = path;
+  }
   const saved = await insertRound(curRound);
   if (!saved) return; // insert failed, keep draft so nothing is lost
   curRound = null; saveRound();
@@ -1012,19 +1198,43 @@ function renderHistory() {
   if (!history.length) { el.innerHTML='<div class="empty"><div class="bi">📅</div><p>Aucune partie terminée.</p></div>'; return; }
   el.innerHTML = history.map((r,i)=>{
     const hs=Object.entries(r.holes).map(([n,h])=>`<span style="margin-right:8px;font-size:.8rem;">T${n}:<b>${h.strokes}</b></span>`).join('');
+    const photoBlock = r.photoPath
+      ? `<div id="photo-slot-${i}" style="margin-bottom:10px;"><div style="font-size:.78rem;color:var(--tl);">📸 Chargement de la photo souvenir...</div></div>`
+      : '';
     return `<div>
       <div class="round-row" onclick="toggleDetail(${i})">
-        <div><div class="rcourse">${r.course}</div><div class="rdate">${r.date}</div></div>
+        <div><div class="rcourse">${r.course} ${r.photoPath?'📸':''}</div><div class="rdate">${r.date}</div></div>
         <div class="rscore">${r.total||Object.values(r.holes).reduce((s,h)=>s+(h.strokes||0),0)} coups</div>
       </div>
       <div class="round-detail" id="detail-${i}">
+        ${photoBlock}
         <div style="flex-wrap:wrap;display:flex;margin-bottom:8px;">${hs}</div>
         <button onclick="delRound(${i})" style="font-size:.75rem;color:#ef4444;background:none;border:none;cursor:pointer;padding:4px;">🗑️ Supprimer</button>
       </div>
     </div>`;
   }).join('');
 }
-function toggleDetail(i){document.getElementById('detail-'+i).classList.toggle('open');}
+async function toggleDetail(i){
+  const detail = document.getElementById('detail-'+i);
+  detail.classList.toggle('open');
+  // Charge la photo à la demande (URL signée), une seule fois
+  const r = history[i];
+  const slot = document.getElementById('photo-slot-'+i);
+  if (detail.classList.contains('open') && r.photoPath && slot && !slot.dataset.loaded) {
+    slot.dataset.loaded = '1';
+    const url = await getPhotoUrl(r.photoPath);
+    if (url) {
+      slot.innerHTML = `<img src="${url}" onclick="openPhotoFull('${url}')" style="width:100%;max-width:280px;border-radius:14px;cursor:pointer;display:block;box-shadow:0 4px 16px rgba(0,0,0,.2);" alt="Photo souvenir">`;
+    } else {
+      slot.innerHTML = `<div style="font-size:.78rem;color:#ef4444;">Photo indisponible.</div>`;
+    }
+  }
+}
+function openPhotoFull(url){
+  const o = document.getElementById('photo-fullscreen');
+  document.getElementById('photo-fullscreen-img').src = url;
+  o.style.display = 'flex';
+}
 async function delRound(i){
   if(!confirm('Supprimer cette partie ?'))return;
   const round = history[i];
@@ -1049,6 +1259,49 @@ document.getElementById('new-round-modal').addEventListener('click',function(e){
   // else: login overlay stays visible
 })();
 </script>
+
+<!-- ═══════ PHOTO SOUVENIR : INTRO ═══════ -->
+<div class="modal-overlay" id="photo-intro">
+  <div class="modal" style="text-align:center;">
+    <div style="font-size:2.4rem;">📸</div>
+    <div class="modal-title" style="margin-top:8px;">Photo souvenir ?</div>
+    <div class="modal-sub">Immortalise ce moment à la BeReal : une photo de la vue du parcours, puis un selfie. C'est optionnel !</div>
+    <button class="btn-p" onclick="startPhotoCapture()">📷 Prendre la photo</button>
+    <button class="btn-s" onclick="skipPhoto()">Passer, jouer directement</button>
+  </div>
+</div>
+
+<!-- ═══════ PHOTO SOUVENIR : CAPTURE ═══════ -->
+<div id="photo-capture" style="display:none;position:fixed;inset:0;z-index:5500;background:black;flex-direction:column;align-items:center;justify-content:center;">
+  <div id="photo-stage-label" style="position:absolute;top:24px;left:0;right:0;text-align:center;color:white;font-family:'Outfit',sans-serif;font-weight:600;font-size:1rem;z-index:2;text-shadow:0 1px 4px rgba(0,0,0,.6);">📷 Photo arrière</div>
+  <video id="photo-video" playsinline autoplay muted style="width:100%;height:100%;object-fit:cover;"></video>
+  <div style="position:absolute;bottom:36px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:40px;z-index:2;">
+    <button onclick="cancelPhotoCapture()" style="background:rgba(255,255,255,.2);color:white;border:none;border-radius:50%;width:54px;height:54px;font-size:1.2rem;cursor:pointer;">✕</button>
+    <button onclick="capturePhoto()" style="background:white;border:5px solid rgba(255,255,255,.5);border-radius:50%;width:76px;height:76px;cursor:pointer;"></button>
+    <div style="width:54px;"></div>
+  </div>
+</div>
+
+<!-- ═══════ PHOTO SOUVENIR : PREVIEW ═══════ -->
+<div id="photo-preview" style="display:none;position:fixed;inset:0;z-index:5500;background:#0a0a0a;flex-direction:column;align-items:center;justify-content:center;padding:20px;">
+  <div style="position:relative;max-width:340px;width:100%;">
+    <img id="preview-main" style="width:100%;border-radius:18px;display:block;" alt="Aperçu">
+    <img id="preview-thumb" style="position:absolute;top:14px;left:14px;width:32%;border-radius:12px;border:3px solid white;display:none;" alt="Selfie">
+  </div>
+  <div style="display:flex;gap:14px;margin-top:24px;width:100%;max-width:340px;">
+    <button onclick="retakePhoto()" style="flex:1;padding:14px;background:rgba(255,255,255,.15);color:white;border:none;border-radius:12px;font-family:'Outfit',sans-serif;font-weight:600;cursor:pointer;">↻ Refaire</button>
+    <button onclick="validatePhoto()" style="flex:1;padding:14px;background:#52b788;color:white;border:none;border-radius:12px;font-family:'Outfit',sans-serif;font-weight:700;cursor:pointer;">✓ Valider</button>
+  </div>
+</div>
+
+<!-- ═══════ PHOTO : badge "enregistrée" ═══════ -->
+<div id="photo-saved-badge" style="display:none;position:fixed;top:80px;left:50%;transform:translateX(-50%);z-index:5600;background:#1a3a2a;color:white;border-radius:30px;padding:10px 20px;align-items:center;gap:8px;font-family:'Outfit',sans-serif;font-weight:600;font-size:.9rem;box-shadow:0 4px 16px rgba(0,0,0,.3);">📸 Photo souvenir enregistrée !</div>
+
+<!-- ═══════ PHOTO : plein écran ═══════ -->
+<div id="photo-fullscreen" style="display:none;position:fixed;inset:0;z-index:6500;background:rgba(0,0,0,.92);align-items:center;justify-content:center;flex-direction:column;" onclick="this.style.display='none'">
+  <img id="photo-fullscreen-img" style="max-width:92%;max-height:80%;border-radius:14px;" alt="Photo souvenir">
+  <div style="color:rgba(255,255,255,.7);font-family:'Outfit',sans-serif;font-size:.85rem;margin-top:16px;">Touche pour fermer</div>
+</div>
 
 <div id="badge-popup" style="display:none;position:fixed;inset:0;z-index:6000;align-items:center;justify-content:center;background:rgba(0,0,0,.55);opacity:0;transition:opacity .3s;">
   <div style="background:white;border-radius:24px;padding:32px 28px;text-align:center;max-width:300px;transform:scale(.8);transition:transform .3s;" id="badge-popup-card">

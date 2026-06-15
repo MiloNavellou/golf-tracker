@@ -1,6 +1,6 @@
 // ⛳ Golf Tracker - Service Worker
 // Version du cache - à incrémenter à chaque mise à jour
-const CACHE_NAME = 'golf-tracker-v3';
+const CACHE_NAME = 'golf-tracker-v4';
 
 // Fichiers à mettre en cache pour le mode hors-ligne
 const ASSETS = [
