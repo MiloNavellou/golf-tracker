@@ -61,24 +61,38 @@
   }
   #map-tabs button.active { background: var(--gm); color: white; }
 
-  .map-container { position: relative; border-radius: var(--r); overflow: hidden; background: #e8f5e9; border: 2px solid var(--gp); }
+  .map-container { position: relative; border-radius: var(--r); overflow: hidden; background: #e8f5e9; border: 2px solid var(--gp); touch-action: pan-x pan-y; }
+  .map-viewport { position: relative; overflow: hidden; }
+  .map-inner { position: relative; transform-origin: 0 0; transition: transform .05s linear; }
   .map-container img { width: 100%; display: block; }
 
   .hole-marker {
-    position: absolute; width: 34px; height: 34px; background: var(--gm);
+    position: absolute; width: 38px; height: 38px; background: var(--gm);
     border: 3px solid white; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    color: white; font-weight: 700; font-size: .85rem; cursor: pointer;
-    transform: translate(-50%,-50%); transition: all .2s;
-    box-shadow: 0 2px 8px rgba(0,0,0,.3); z-index: 10; font-family: 'Outfit', sans-serif;
+    color: white; font-weight: 700; font-size: .95rem; cursor: pointer;
+    transform: translate(-50%,-50%); transition: background .2s, scale .2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,.35); z-index: 10; font-family: 'Outfit', sans-serif;
+    -webkit-tap-highlight-color: transparent;
   }
-  .hole-marker:hover, .hole-marker.active { background: var(--sand); transform: translate(-50%,-50%) scale(1.2); z-index: 11; }
+  /* zone tactile élargie invisible autour de la pastille */
+  .hole-marker::before {
+    content: ''; position: absolute; inset: -10px; border-radius: 50%;
+  }
+  .hole-marker:hover, .hole-marker.active { background: var(--sand); scale: 1.18; z-index: 11; }
   .hole-marker.done { background: var(--gl); }
   .hole-marker.done::after {
     content: '✓'; position: absolute; top: -6px; right: -6px;
     background: white; color: var(--gm); border-radius: 50%;
-    width: 14px; height: 14px; font-size: 9px;
+    width: 16px; height: 16px; font-size: 10px;
     display: flex; align-items: center; justify-content: center; border: 1px solid var(--gm);
+  }
+  .map-hint { text-align:center; font-size:.72rem; color:var(--tl); margin-top:6px; }
+  .map-zoom-btns { position:absolute; right:10px; bottom:10px; display:flex; flex-direction:column; gap:6px; z-index:20; }
+  .map-zoom-btns button {
+    width:38px; height:38px; border-radius:10px; border:none; background:rgba(26,58,42,.85);
+    color:white; font-size:1.3rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
   }
 
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 1000; align-items: flex-end; justify-content: center; }
@@ -162,6 +176,14 @@
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
 
+  @media (max-width:600px) {
+    .page { padding: 12px; }
+    #map-tabs button { padding: 7px 12px; font-size: .8rem; }
+    /* La carte prend une grande hauteur d'écran pour le confort tactile */
+    .map-viewport { min-height: 60vh; }
+    .map-inner img { min-height: 60vh; object-fit: cover; object-position: center; }
+    .hole-marker { width: 44px; height: 44px; font-size: 1.05rem; }
+  }
   @media (max-width:400px) {
     .clubs-grid { grid-template-columns: repeat(3,1fr); }
     .stats-grid { grid-template-columns: 1fr; }
@@ -220,6 +242,7 @@
   <button onclick="showPage('scorecard')" id="nav-scorecard"><span class="ni">📋</span>Carte Score</button>
   <button onclick="showPage('stats')" id="nav-stats"><span class="ni">📊</span>Stats</button>
   <button onclick="showPage('history')" id="nav-history"><span class="ni">📅</span>Historique</button>
+  <button onclick="showPage('defis')" id="nav-defis"><span class="ni">🏅</span>Défis</button>
 </nav>
 
 <!-- PAGE PARCOURS -->
@@ -230,6 +253,7 @@
     <button onclick="setMapView('epure')">Vue épurée</button>
   </div>
   <div class="map-container" id="map-container"></div>
+  <div class="map-hint">👆 Tape un trou pour saisir tes coups · pince pour zoomer · double-tape pour réinitialiser</div>
   <div class="map-legend">
     <div class="legend-item"><div class="legend-dot" style="background:var(--gm)"></div>Non joué</div>
     <div class="legend-item"><div class="legend-dot" style="background:var(--gl)"></div>Joué ✓</div>
@@ -277,6 +301,19 @@
     <div class="empty"><div class="bi">📅</div><p>Aucune partie terminée.</p></div>
   </div>
 </div>
+
+<!-- PAGE DÉFIS -->
+<div id="page-defis" class="page">
+  <div id="defis-header" style="background:linear-gradient(135deg,var(--gd),var(--gm));border-radius:var(--r);padding:20px;color:white;margin-bottom:16px;">
+    <div style="font-size:1.1rem;font-weight:700;">🏅 Mes défis</div>
+    <div style="font-size:.85rem;opacity:.8;margin-top:4px;" id="defis-count">0 / 15 badges débloqués</div>
+    <div style="background:rgba(255,255,255,.2);border-radius:6px;height:8px;margin-top:12px;">
+      <div id="defis-progress-bar" style="background:var(--gp);height:100%;border-radius:6px;width:0%;transition:width .6s ease;"></div>
+    </div>
+  </div>
+  <div id="defis-list"></div>
+</div>
+
 
 <!-- MODAL SAISIE TROU -->
 <div class="modal-overlay" id="shot-modal">
@@ -415,6 +452,180 @@ async function deleteRoundDb(dbId) {
 
 let history = [];
 
+// ═══════════════ BADGES / DÉFIS ═══════════════
+// Chaque badge a une fonction test(ctx) qui renvoie true si débloqué.
+// ctx = { history, rounds } où rounds = parties terminées (avec holes, total, date...)
+const BADGES = [
+  // Progression
+  { key:'first_game', icon:'🏌️', name:'Première partie', desc:'Terminer ta première partie',
+    test: c => c.rounds.length >= 1 },
+  { key:'regular_5', icon:'🔥', name:'Habitué', desc:'5 parties jouées',
+    test: c => c.rounds.length >= 5 },
+  { key:'regular_10', icon:'⭐', name:'Régulier', desc:'10 parties jouées',
+    test: c => c.rounds.length >= 10 },
+  { key:'two_days', icon:'📅', name:'Assidu', desc:'Jouer 2 jours de suite',
+    test: c => hasConsecutiveDays(c.rounds) },
+  // Performance (9 trous)
+  { key:'under_60', icon:'💪', name:'Sous les 60', desc:'Terminer 9 trous en moins de 60 coups',
+    test: c => bestScore(c.rounds) !== null && bestScore(c.rounds) < 60 },
+  { key:'under_55', icon:'🎯', name:'Sous les 55', desc:'Terminer 9 trous en moins de 55 coups',
+    test: c => bestScore(c.rounds) !== null && bestScore(c.rounds) < 55 },
+  { key:'under_50', icon:'🏆', name:'Sous les 50', desc:'Terminer 9 trous en moins de 50 coups',
+    test: c => bestScore(c.rounds) !== null && bestScore(c.rounds) < 50 },
+  { key:'under_45', icon:'👑', name:'Sous les 45', desc:'Terminer 9 trous en moins de 45 coups',
+    test: c => bestScore(c.rounds) !== null && bestScore(c.rounds) < 45 },
+  { key:'under_40', icon:'🌟', name:'Sous les 40', desc:'Terminer 9 trous en moins de 40 coups',
+    test: c => bestScore(c.rounds) !== null && bestScore(c.rounds) < 40 },
+  // Régularité du jeu
+  { key:'clean_hole', icon:'🎲', name:'Trou propre', desc:'Un trou en 3 coups ou moins',
+    test: c => c.rounds.some(r => Object.values(r.holes).some(h => h.strokes <= 3)) },
+  { key:'three_clean', icon:'✨', name:'Trois beaux trous', desc:'3 trous à 3 coups ou moins dans une partie',
+    test: c => c.rounds.some(r => Object.values(r.holes).filter(h => h.strokes <= 3).length >= 3) },
+  // Progression personnelle
+  { key:'beat_record', icon:'📈', name:'Record battu', desc:'Améliorer ton meilleur score',
+    test: c => beatRecord(c.rounds) },
+  { key:'persistent', icon:'🔄', name:'Persévérant', desc:'Rejouer après une partie au-dessus de 60',
+    test: c => isPersistent(c.rounds) },
+  // Découverte
+  { key:'explorer', icon:'🗺️', name:'Explorateur', desc:'Jouer sur un autre parcours que St-Grégoire',
+    test: c => c.rounds.some(r => r.courseId && !String(r.courseId).startsWith('stgregoire')) },
+  { key:'versatile', icon:'🧰', name:'Polyvalent', desc:'Utiliser 5 clubs différents dans une partie',
+    test: c => c.rounds.some(r => {
+      const set = new Set();
+      Object.values(r.holes).forEach(h => (h.clubs||[]).forEach(cl => set.add(cl)));
+      return set.size >= 5;
+    }) },
+];
+
+// — Helpers de calcul —
+function completedRounds() {
+  // parties terminées = celles de l'historique (déjà filtrées par Supabase)
+  return history.filter(r => r.total != null);
+}
+function bestScore(rounds) {
+  const scores = rounds.map(r => r.total).filter(t => t != null);
+  return scores.length ? Math.min(...scores) : null;
+}
+function hasConsecutiveDays(rounds) {
+  // dates stockées en format fr "JJ/MM/AAAA"
+  const days = [...new Set(rounds.map(r => r.date))].map(parseFrDate).filter(Boolean).sort((a,b)=>a-b);
+  for (let i=1;i<days.length;i++){
+    const diff = (days[i]-days[i-1])/(1000*60*60*24);
+    if (diff === 1) return true;
+  }
+  return false;
+}
+function parseFrDate(s) {
+  if (!s) return null;
+  const m = String(s).split('/');
+  if (m.length !== 3) return null;
+  return new Date(+m[2], +m[1]-1, +m[0]).getTime();
+}
+function beatRecord(rounds) {
+  // vrai si au moins une partie (hors la 1re) a battu le meilleur score précédent
+  const chrono = [...rounds].reverse(); // history est en ordre décroissant -> on remet croissant
+  let best = null;
+  for (const r of chrono) {
+    if (r.total == null) continue;
+    if (best !== null && r.total < best) return true;
+    if (best === null || r.total < best) best = r.total;
+  }
+  return false;
+}
+function isPersistent(rounds) {
+  const chrono = [...rounds].reverse();
+  for (let i=1;i<chrono.length;i++){
+    if (chrono[i-1].total != null && chrono[i-1].total > 60) return true;
+  }
+  return false;
+}
+
+// — Synchronisation des badges avec Supabase —
+let unlockedBadges = {}; // { badge_key: unlocked_at }
+
+async function fetchBadges() {
+  if (!currentUser) { unlockedBadges = {}; return; }
+  const { data, error } = await sb.from('badges').select('*');
+  if (error) { console.error('Badges fetch error:', error); return; }
+  unlockedBadges = {};
+  data.forEach(b => { unlockedBadges[b.badge_key] = b.unlocked_at; });
+}
+
+// Évalue les badges, insère les nouveaux dans Supabase, renvoie la liste des nouvellement débloqués
+async function evaluateBadges() {
+  const ctx = { history, rounds: completedRounds() };
+  const newly = [];
+  for (const badge of BADGES) {
+    if (unlockedBadges[badge.key]) continue; // déjà débloqué
+    let ok = false;
+    try { ok = badge.test(ctx); } catch(e) { ok = false; }
+    if (ok) newly.push(badge);
+  }
+  if (newly.length && currentUser) {
+    setSync('syncing');
+    const rows = newly.map(b => ({ badge_key: b.key }));
+    // upsert avec ignoreDuplicates : si un badge existe déjà (contrainte unique), on n'a pas d'erreur
+    const { data, error } = await sb.from('badges')
+      .upsert(rows, { onConflict: 'user_id,badge_key', ignoreDuplicates: true })
+      .select();
+    if (error) {
+      console.error('Badge insert error:', error); setSync('error');
+      // On rafraîchit depuis la base pour rester cohérent
+      await fetchBadges();
+    } else {
+      (data || []).forEach(b => { unlockedBadges[b.badge_key] = b.unlocked_at; });
+      // Si upsert n'a rien renvoyé (doublons ignorés), on recharge pour avoir les dates
+      if (!data || data.length < newly.length) await fetchBadges();
+      setSync('ok');
+    }
+  }
+  return newly;
+}
+
+function showBadgeUnlock(badges) {
+  if (!badges.length) return;
+  // File d'attente d'animations
+  let i = 0;
+  function next() {
+    if (i >= badges.length) return;
+    const b = badges[i++];
+    const el = document.getElementById('badge-popup');
+    document.getElementById('badge-popup-icon').textContent = b.icon;
+    document.getElementById('badge-popup-name').textContent = b.name;
+    document.getElementById('badge-popup-desc').textContent = b.desc;
+    el.style.display = 'flex';
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => {
+      el.classList.remove('show');
+      setTimeout(() => { el.style.display = 'none'; next(); }, 300);
+    }, 2600);
+  }
+  next();
+}
+
+function renderDefis() {
+  const list = document.getElementById('defis-list');
+  const total = BADGES.length;
+  const unlocked = BADGES.filter(b => unlockedBadges[b.key]).length;
+  document.getElementById('defis-count').textContent = unlocked + ' / ' + total + ' badges débloqués';
+  document.getElementById('defis-progress-bar').style.width = (unlocked/total*100) + '%';
+
+  list.innerHTML = BADGES.map(b => {
+    const got = unlockedBadges[b.key];
+    const date = got ? new Date(got).toLocaleDateString('fr-FR') : null;
+    return `
+      <div style="display:flex;align-items:center;gap:14px;background:white;border-radius:14px;padding:14px 16px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.06);${got?'':'opacity:.55;'}">
+        <div style="font-size:2rem;filter:${got?'none':'grayscale(1)'};width:44px;text-align:center;">${b.icon}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:.95rem;color:var(--gd);">${b.name}</div>
+          <div style="font-size:.78rem;color:var(--tl);">${b.desc}</div>
+          ${date ? `<div style="font-size:.72rem;color:var(--gl);font-weight:600;margin-top:2px;">✓ Débloqué le ${date}</div>` : ''}
+        </div>
+        ${got ? '<div style="color:var(--gl);font-size:1.2rem;">✓</div>' : '<div style="color:#cbd5e1;font-size:1.1rem;">🔒</div>'}
+      </div>`;
+  }).join('');
+}
+
 // ═══════════════ AUTH ═══════════════
 function toggleAuthMode() {
   authMode = authMode === 'login' ? 'signup' : 'login';
@@ -489,6 +700,7 @@ async function onLogin(user) {
   document.getElementById('header-sub').textContent = user.email;
   loadDraft();
   await fetchHistory();
+  await fetchBadges();
   renderMap();
   if (curRound) { document.getElementById('current-round-info').style.display='block'; updateInfo(); }
   renderHistory();
@@ -516,6 +728,7 @@ function showPage(name) {
   if (name==='history') renderHistory();
   if (name==='scorecard') renderScorecard();
   if (name==='parcours') renderMap();
+  if (name==='defis') renderDefis();
 }
 
 function setMapView(v) {
@@ -526,26 +739,128 @@ function setMapView(v) {
   renderMap();
 }
 
+let mapZoom = 1, mapPanX = 0, mapPanY = 0;
+
+function applyMapTransform() {
+  const inner = document.getElementById('map-inner');
+  if (inner) inner.style.transform = `translate(${mapPanX}px,${mapPanY}px) scale(${mapZoom})`;
+}
+
+function clampPan() {
+  const vp = document.getElementById('map-viewport');
+  if (!vp) return;
+  const w = vp.clientWidth, h = vp.clientHeight;
+  const maxX = (mapZoom - 1) * w;
+  const maxY = (mapZoom - 1) * h;
+  mapPanX = Math.min(0, Math.max(-maxX, mapPanX));
+  mapPanY = Math.min(0, Math.max(-maxY, mapPanY));
+}
+
+function zoomMap(delta) {
+  mapZoom = Math.min(3, Math.max(1, mapZoom + delta));
+  if (mapZoom === 1) { mapPanX = 0; mapPanY = 0; }
+  clampPan();
+  applyMapTransform();
+}
+
 function renderMap() {
   const c = document.getElementById('map-container');
   c.innerHTML = '';
+  mapZoom = 1; mapPanX = 0; mapPanY = 0;
+
+  const viewport = document.createElement('div');
+  viewport.className = 'map-viewport';
+  viewport.id = 'map-viewport';
+
+  const inner = document.createElement('div');
+  inner.className = 'map-inner';
+  inner.id = 'map-inner';
+
   const img = document.createElement('img');
   img.src = MAPS[curMapView];
-  img.alt = 'Parcours St-Grégoire';
-  c.appendChild(img);
+  img.alt = 'Parcours';
+  inner.appendChild(img);
+
   function placeMarkers() {
+    // retire d'éventuels marqueurs déjà posés
+    inner.querySelectorAll('.hole-marker').forEach(m => m.remove());
     HOLES.forEach(hp => {
       const m = document.createElement('div');
       m.className = 'hole-marker' + (curRound && curRound.holes[hp.hole] ? ' done' : '');
       m.textContent = hp.hole;
       m.style.left = hp.x + '%';
       m.style.top = hp.y + '%';
-      m.onclick = () => openHoleModal(hp.hole);
-      c.appendChild(m);
+      m.addEventListener('click', (e) => { e.stopPropagation(); openHoleModal(hp.hole); });
+      inner.appendChild(m);
     });
   }
   img.onload = placeMarkers;
   setTimeout(placeMarkers, 400);
+
+  viewport.appendChild(inner);
+  c.appendChild(viewport);
+
+  // Boutons de zoom
+  const zb = document.createElement('div');
+  zb.className = 'map-zoom-btns';
+  zb.innerHTML = '<button onclick="zoomMap(0.5)">+</button><button onclick="zoomMap(-0.5)">−</button>';
+  c.appendChild(zb);
+
+  setupMapGestures(viewport);
+}
+
+// ── Gestes tactiles : pinch-to-zoom + pan ──
+function setupMapGestures(viewport) {
+  let startDist = 0, startZoom = 1;
+  let lastX = 0, lastY = 0, panning = false;
+
+  viewport.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      startDist = touchDist(e.touches);
+      startZoom = mapZoom;
+    } else if (e.touches.length === 1 && mapZoom > 1) {
+      panning = true;
+      lastX = e.touches[0].clientX;
+      lastY = e.touches[0].clientY;
+    }
+  }, { passive: true });
+
+  viewport.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      const d = touchDist(e.touches);
+      mapZoom = Math.min(3, Math.max(1, startZoom * (d / startDist)));
+      if (mapZoom === 1) { mapPanX = 0; mapPanY = 0; }
+      clampPan();
+      applyMapTransform();
+    } else if (panning && e.touches.length === 1) {
+      const dx = e.touches[0].clientX - lastX;
+      const dy = e.touches[0].clientY - lastY;
+      lastX = e.touches[0].clientX;
+      lastY = e.touches[0].clientY;
+      mapPanX += dx; mapPanY += dy;
+      clampPan();
+      applyMapTransform();
+    }
+  }, { passive: true });
+
+  viewport.addEventListener('touchend', e => {
+    if (e.touches.length === 0) panning = false;
+  });
+
+  // Double-tap pour reset
+  let lastTap = 0;
+  viewport.addEventListener('touchend', e => {
+    const now = Date.now();
+    if (now - lastTap < 300 && e.touches.length === 0) {
+      mapZoom = 1; mapPanX = 0; mapPanY = 0; applyMapTransform();
+    }
+    lastTap = now;
+  });
+}
+function touchDist(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
 }
 
 function startNewRound() {
@@ -584,7 +899,10 @@ async function finishRound() {
   document.getElementById('header-badge').style.display='none';
   await fetchHistory();
   renderMap();
+  // Évalue les badges après la nouvelle partie
+  const newBadges = await evaluateBadges();
   alert('✅ Partie terminée ! Score : ' + finalScore + ' coups');
+  if (newBadges.length) showBadgeUnlock(newBadges);
   showPage('history');
 }
 
@@ -732,7 +1050,19 @@ document.getElementById('new-round-modal').addEventListener('click',function(e){
 })();
 </script>
 
-<div id="install-banner" style="display:none;position:fixed;bottom:80px;left:16px;right:16px;background:#1a3a2a;color:white;border-radius:16px;padding:16px;box-shadow:0 8px 32px rgba(0,0,0,0.3);z-index:9999;font-family:'Outfit',sans-serif;">
+<div id="badge-popup" style="display:none;position:fixed;inset:0;z-index:6000;align-items:center;justify-content:center;background:rgba(0,0,0,.55);opacity:0;transition:opacity .3s;">
+  <div style="background:white;border-radius:24px;padding:32px 28px;text-align:center;max-width:300px;transform:scale(.8);transition:transform .3s;" id="badge-popup-card">
+    <div style="font-size:.8rem;font-weight:700;letter-spacing:1px;color:var(--sand);text-transform:uppercase;">Nouveau badge !</div>
+    <div id="badge-popup-icon" style="font-size:4rem;margin:16px 0;">🏅</div>
+    <div id="badge-popup-name" style="font-size:1.3rem;font-weight:700;color:var(--gd);">Badge</div>
+    <div id="badge-popup-desc" style="font-size:.85rem;color:var(--tl);margin-top:6px;">Description</div>
+  </div>
+</div>
+<style>
+  #badge-popup.show { opacity: 1; }
+  #badge-popup.show #badge-popup-card { transform: scale(1); }
+</style>
+
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
     <div>
       <div style="font-weight:700;font-size:.95rem;">📲 Installer l'app</div>
