@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📖 Guide - Mon Golf Tracker (cloud)</title>
+<style>
+  body { font-family: -apple-system, 'Segoe UI', sans-serif; max-width: 700px; margin: 0 auto; padding: 24px; background: #f8f5ee; color: #1a2e1f; line-height: 1.6; }
+  h1 { color: #2d6a4f; }
+  h2 { color: #1a3a2a; margin-top: 32px; border-left: 4px solid #52b788; padding-left: 12px; }
+  .step { background: white; border-radius: 12px; padding: 16px 20px; margin: 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .step-num { display: inline-block; background: #2d6a4f; color: white; border-radius: 50%; width: 28px; height: 28px; line-height: 28px; text-align: center; font-weight: 700; margin-right: 10px; font-size: .9rem; }
+  code { background: #e8f5e9; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: .9rem; color: #1a3a2a; }
+  pre { background: #1a3a2a; color: #b7e4c7; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: .85rem; }
+  .tip { background: #fff3cd; border-left: 4px solid #d4a853; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  .warn { background: #fee2e2; border-left: 4px solid #ef4444; padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; }
+  a { color: #2d6a4f; font-weight: 600; }
+  .badge { background: #2d6a4f; color: white; border-radius: 20px; padding: 6px 14px; font-size: .85rem; font-weight: 600; display:inline-block; margin:4px; }
+</style>
+</head>
+<body>
+
+<h1>⛳ Mon Golf Tracker — version cloud</h1>
+<p>Ton app sauvegarde maintenant tes parties dans <strong>Supabase</strong> (cloud privé) avec connexion par email. Tes scores te suivent sur iPhone et PC.</p>
+
+<h2>✅ Déjà fait côté Supabase</h2>
+<div class="step"><span class="step-num">✓</span> Projet Supabase créé</div>
+<div class="step"><span class="step-num">✓</span> Table <code>rounds</code> avec sécurité par utilisateur (RLS)</div>
+<div class="step"><span class="step-num">✓</span> Connexion email activée, confirmation désactivée</div>
+<div class="step"><span class="step-num">✓</span> Clés intégrées dans l'app</div>
+
+<h2>🚀 Mettre l'app en ligne</h2>
+
+<p><strong>Option simple — Netlify Drop (aucune installation)</strong></p>
+<div class="step">
+  <span class="step-num">1</span>
+  Extrais le dossier <code>golf_pwa</code> de ce ZIP sur ton PC
+</div>
+<div class="step">
+  <span class="step-num">2</span>
+  Va sur <a href="https://app.netlify.com/drop" target="_blank">app.netlify.com/drop</a>
+</div>
+<div class="step">
+  <span class="step-num">3</span>
+  Glisse le dossier <code>golf_pwa</code> dans la zone → URL en ligne en 30 secondes 🎉
+</div>
+
+<p style="margin-top:20px;"><strong>Option Vercel (ligne de commande)</strong></p>
+<div class="step">
+  <span class="step-num">1</span>
+  Installe Node.js depuis <a href="https://nodejs.org" target="_blank">nodejs.org</a>
+</div>
+<div class="step">
+  <span class="step-num">2</span>
+  Ouvre un terminal dans le dossier <code>golf_pwa</code> et tape :
+  <pre>npm install -g vercel
+vercel login
+vercel</pre>
+  Laisse les valeurs par défaut. Vercel te donne une URL <code>https://...vercel.app</code> 🎉
+</div>
+
+<div class="tip">
+  💡 Les deux options donnent une URL HTTPS, indispensable pour que la PWA s'installe et que la connexion fonctionne.
+</div>
+
+<h2>🔐 Première connexion</h2>
+<div class="step"><span class="step-num">1</span> Ouvre l'URL de ton app</div>
+<div class="step"><span class="step-num">2</span> Clique <strong>"Créer un compte"</strong>, entre email + mot de passe (6 caractères min)</div>
+<div class="step"><span class="step-num">3</span> Connecté immédiatement. Mêmes identifiants sur tes autres appareils = tu retrouves tes parties.</div>
+
+<h2>📱 Installer sur iPhone</h2>
+<div class="step"><span class="step-num">1</span> Ouvre l'URL dans <strong>Safari</strong></div>
+<div class="step"><span class="step-num">2</span> Bouton <strong>Partager ↑</strong> → <strong>"Sur l'écran d'accueil"</strong></div>
+<div class="step"><span class="step-num">3</span> Icône ⛳ ajoutée. Connecte-toi une fois, c'est gardé.</div>
+
+<h2>💻 Installer sur PC</h2>
+<div class="step"><span class="step-num">1</span> Ouvre l'URL dans <strong>Chrome</strong> ou <strong>Edge</strong></div>
+<div class="step"><span class="step-num">2</span> Icône <strong>⊕ Installer</strong> dans la barre d'adresse</div>
+
+<h2>🔒 Tes données</h2>
+<p>Chaque partie est rattachée à ton compte. La règle de sécurité Supabase (RLS) fait que <strong>personne d'autre ne peut voir tes parties</strong>, même avec l'URL. La partie en cours non terminée est gardée localement jusqu'à ce que tu la termines, puis elle part dans le cloud.</p>
+
+<div class="warn">
+  ⚠️ Une partie "en cours" non terminée reste sur l'appareil où tu l'as commencée. Termine-la pour qu'elle soit visible partout.
+</div>
+
+<div style="text-align:center;margin-top:30px;">
+  <span class="badge">🔐 Connexion privée</span>
+  <span class="badge">☁️ Sync multi-appareils</span>
+  <span class="badge">📱 Installable</span>
+</div>
+
+<p style="text-align:center;color:#4a6058;font-size:.85rem;margin-top:24px;">⛳ Bon golf et bonne progression !</p>
+
+</body>
+</html>
