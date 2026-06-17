@@ -458,7 +458,7 @@
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
-    <div id="sync-status" style="font-size:.7rem;opacity:.7;display:none;">☁️</div>
+    <div id="sync-status" style="font-size:.7rem;opacity:.7;display:none;"> </div>
     <div id="header-badge" style="background:rgba(82,183,136,0.22);border:1px solid rgba(82,183,136,0.4);border-radius:10px;padding:6px 12px;text-align:center;display:none;">
       <div style="font-size:1.2rem;font-weight:800;color:white;" id="hdr-total">0</div>
       <div style="font-size:.6rem;color:rgba(255,255,255,.6);">coups</div>
@@ -721,7 +721,7 @@ function setSync(state) {
   if (!el) return;
   el.style.display = 'block';
   if (state === 'syncing') el.textContent = '⏳';
-  else if (state === 'ok') el.textContent = '☁️';
+  else if (state === 'ok') el.textContent = ' ';
   else if (state === 'error') el.textContent = '⚠️';
 }
 
